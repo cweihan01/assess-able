@@ -1,0 +1,17 @@
+[
+    {
+        "box_2d": [478, 486, 713, 552],
+        "label": "grab bar location",
+        "suggestion": "Install a horizontal or angled grab bar here to assist with sitting down on and standing up from the toilet."
+    },
+    {
+        "box_2d": [253, 577, 562, 630],
+        "label": "grab bar location",
+        "suggestion": "Install a vertical grab bar here inside the shower to aid with entry/exit and provide stability while showering."
+    },
+    {
+        "box_2d": [340, 742, 656, 851],
+        "label": "grab bar location",
+        "suggestion": "Install a horizontal grab bar here inside the shower for additional support while standing and moving within the shower area."
+    }
+]
