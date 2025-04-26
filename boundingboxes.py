@@ -15,7 +15,7 @@ from io import BytesIO
 client = genai.Client(api_key="AIzaSyAZfG6fjytN1EimpmyVhi6XgS_3slgkVJA")
 
 # Model
-MODEL_ID = "gemini-2.5-pro-exp-03-25"
+MODEL_ID = "gemini-2.5-pro-preview-03-25"
 
 # Create a path object
 p = Path("images") / "caleb.jpg"
