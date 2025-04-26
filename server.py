@@ -4,6 +4,7 @@ from google import genai
 from google.genai import types
 from PIL import Image, ImageDraw
 import io
+from io import BytesIO
 import base64
 import json
 import zipfile
@@ -13,6 +14,7 @@ app = FastAPI()
 # Gemini Client
 client = genai.Client(api_key="AIzaSyAZfG6fjytN1EimpmyVhi6XgS_3slgkVJA")
 MODEL_ID = "gemini-2.5-pro-exp-03-25"
+MODEL_ID_IMG_GEN = "gemini-2.0-flash-exp-image-generation"
 
 bounding_box_system_instructions = """
     Return bounding boxes as a JSON array with labels. Never return masks or code fencing. Limit to 25 objects.
@@ -100,7 +102,47 @@ async def analyze_image(file: UploadFile = File(...)):
             img_bytes.seek(0)
 
             # Write image into the zip file
-            zip_file.writestr(f"image_{idx + 1}.png", img_bytes.read())
+            zip_file.writestr(f"bb_image_{idx + 1}.png", img_bytes.read())
+
+            # ----- NOW: Second Gemini Call for handlebar -----
+
+            # Prepare second prompt
+            handlebar_prompt = f"""
+            You are given an image of a bathroom and a bounding box: {box["box_2d"]}.
+            Please draw a realistic safety grab bar **inside** this bounding box.
+            Maintain the rest of the bathroom untouched.
+            """
+
+            # Save the original (without red box) for second call
+            clean_img_buffer = io.BytesIO()
+            original_image.save(clean_img_buffer, format="JPEG")
+            clean_base64 = base64.b64encode(clean_img_buffer.getvalue()).decode()
+
+            handlebar_response = client.models.generate_content(
+                model=MODEL_ID_IMG_GEN,
+                contents=[
+                    {"inline_data": {"mime_type": "image/jpeg", "data": clean_base64}},
+                    handlebar_prompt
+                ],
+                config=types.GenerateContentConfig(
+                    temperature=0.5,
+                    response_modalities=['TEXT', 'IMAGE'],
+                    safety_settings=safety_settings,
+                )
+            )
+
+           # Parse the response to get the generated image
+            for part in handlebar_response.candidates[0].content.parts:
+                if part.inline_data is not None:
+                    handlebar_img = Image.open(BytesIO(part.inline_data.data))
+                    
+                    # Save the handlebar image into bytes
+                    img_handlebar_bytes = io.BytesIO()
+                    handlebar_img.save(img_handlebar_bytes, format="PNG")
+                    img_handlebar_bytes.seek(0)
+
+                    # Add to zip
+                    zip_file.writestr(f"mod_image_{idx+1}.png", img_handlebar_bytes.read())
 
     # Move the buffer to the beginning
     zip_buffer.seek(0)
