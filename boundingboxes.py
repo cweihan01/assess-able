@@ -1,15 +1,10 @@
 from google import genai
 from google.genai import types
 from pathlib import Path
-import IPython
 import json
-import random
 from PIL import Image, ImageDraw, ImageFont
 from PIL import ImageColor
 
-import io
-import os
-import requests
 from io import BytesIO
 
 client = genai.Client(api_key="AIzaSyAZfG6fjytN1EimpmyVhi6XgS_3slgkVJA")
