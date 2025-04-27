@@ -11,8 +11,9 @@ import io
 import os
 import requests
 from io import BytesIO
+from config import GEMINI_API_KEY
 
-client = genai.Client(api_key="AIzaSyAZfG6fjytN1EimpmyVhi6XgS_3slgkVJA")
+client = genai.Client(api_key=GEMINI_API_KEY)
 
 # Model
 MODEL_ID = "gemini-2.0-flash-exp-image-generation"

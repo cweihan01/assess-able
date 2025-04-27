@@ -8,10 +8,12 @@ import io
 import base64
 import json
 
+from config import GEMINI_API_KEY
+
 app = FastAPI()
 
 # Gemini Client
-client = genai.Client(api_key="AIzaSyAZfG6fjytN1EimpmyVhi6XgS_3slgkVJA")
+client = genai.Client(api_key=GEMINI_API_KEY)
 MODEL_ID = "gemini-2.5-pro-exp-03-25"
 
 # Instructions to Gemini

@@ -5,15 +5,14 @@ from io import BytesIO
 from pathlib import Path
 
 # Create a path object
-IMG_PATH = Path("images") / "caleb.jpg"
+IMG_PATH = Path("images") / "blurry.jpg"
 JSON_PATH = Path("caleb.json")
 
 with open(JSON_PATH, 'r', encoding='utf-8') as f:
     json_output = f.read()
 
 # Load and resize image
-im = Image.open(BytesIO(open(IMG_PATH, "rb").read()))
-im.thumbnail([1024,1024], Image.Resampling.LANCZOS)
+im = Image.open(IMG_PATH)
 
 def parse_json(json_output: str):
     # Parsing out the markdown fencing
