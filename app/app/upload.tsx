@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
 import { Buffer } from 'buffer';
+import JSZip from 'jszip';
 
 // const API_URL = 'http://10.100.2.90:8000/analyze/';
 const API_URL = 'https://5271-164-67-70-232.ngrok-free.app';
@@ -33,8 +34,9 @@ export default function Upload() {
             Alert.alert('Permission required', 'Permission to access media library is required!');
             return;
         }
-        const result = await ImagePicker.launchCameraAsync({
-            mediaTypes: ['images', 'videos'],
+        // const result = await ImagePicker.launchCameraAsync({
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
             allowsEditing: false,
             quality: 0.8,
         });
@@ -50,7 +52,7 @@ export default function Upload() {
         }
         setUploading(true);
 
-        // Prepare form data
+        // 1) Upload the image and get back the ZIP as arraybuffer
         const formData = new FormData();
         formData.append('file', {
             uri: imageUri,
@@ -81,16 +83,29 @@ export default function Upload() {
             });
             console.log('Received response');
 
-            // Convert arraybuffer to base64
+            // 2) Write the raw ZIP to disk
             const base64data = Buffer.from(response.data, 'binary').toString('base64');
-            const fileUri = FileSystem.documentDirectory + 'results.zip';
-            await FileSystem.writeAsStringAsync(fileUri, base64data, {
+            const zipUri = FileSystem.documentDirectory + 'results.zip';
+            await FileSystem.writeAsStringAsync(zipUri, base64data, {
                 encoding: FileSystem.EncodingType.Base64,
             });
 
-            Alert.alert('Success', `Results saved to ${fileUri}`);
-            // Navigate to improvements screen if needed:
-            // router.push({ pathname: '/improvements', params: { zipUri: fileUri } });
+            // 3) Parse the ZIP in-memory to count how many bb_image_*.png you have
+            const zip = await JSZip.loadAsync(response.data);
+            const imageEntries = Object.keys(zip.files).filter((f) =>
+                f.match(/^bb_image_\d+\.png$/)
+            );
+            const total = imageEntries.length;
+
+            // 4) Navigate to the first results page
+            router.push({
+                pathname: '/improvements/[idx]',
+                params: {
+                    idx: '1', // start at 1
+                    total: total.toString(),
+                    zipUri, // pass along your zip location
+                },
+            });
         } catch (error) {
             console.error(error);
             Alert.alert('Error', 'Upload or download failed.');
