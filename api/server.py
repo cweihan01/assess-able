@@ -325,7 +325,7 @@ async def generate_report(indexes: str = Form(...)):
     print("Received indexes:", index_list)
 
     # Path to your zip file
-    zip_path = os.path.join(os.getcwd(), "sample.zip")
+    zip_path = os.path.join(os.getcwd(), "actual.zip")
     if not os.path.exists(zip_path):
         raise HTTPException(status_code=404, detail="Test ZIP not found")
 
@@ -377,7 +377,7 @@ async def generate_report(indexes: str = Form(...)):
 @app.post("/analyze/")
 async def analyze_image_test(file: UploadFile = File(...),):
     print("analyze_image_test called")
-    zip_path = os.path.join(os.getcwd(), "sample.zip")
+    zip_path = os.path.join(os.getcwd(), "actual.zip")
     if not os.path.exists(zip_path):
         raise HTTPException(404, "Test ZIP not found")
 
@@ -385,7 +385,7 @@ async def analyze_image_test(file: UploadFile = File(...),):
     return FileResponse(
         path=zip_path,
         media_type="application/zip",
-        filename="sample.zip",
+        filename="actual.zip",
     )
 
 if __name__ == "__main__":
