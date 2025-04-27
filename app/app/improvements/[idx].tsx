@@ -23,18 +23,21 @@ export default function ImprovementDetail() {
     const idx = parseInt(idxStr as string, 10);
     const total = parseInt(totalStr as string, 10);
 
-    // Local state for our four pieces of content
+    // Local state for each page's content
     const [bbImage, setBbImage] = useState<string | null>(null);
     const [modImage, setModImage] = useState<string | null>(null);
     const [recommendation, setRecommendation] = useState<string>('');
     const [rationale, setRationale] = useState<string>('');
+    const [cost, setCost] = useState<string>('');
+    const [installation, setInstallation] = useState<string>('');
+
     const [loading, setLoading] = useState(true);
     const [previewMode, setPreviewMode] = useState(false);
 
     useEffect(() => {
-        console.log('Loading zip contents from ImprovementDetail...');
         async function loadZipContents() {
             try {
+                console.log('Loading zip contents...');
                 console.log('zipUri:', zipUri);
 
                 // 1) read base64 zip from disk
@@ -44,29 +47,32 @@ export default function ImprovementDetail() {
 
                 // 2) load zip
                 const zip = await JSZip.loadAsync(Buffer.from(base64, 'base64'));
-                console.log(zip.files);
+                console.log('Files inside zipfile:');
+                // This print statement does not work for json - RangeError: property storage
+                // console.log(zip.files);
 
                 // 3) pull out each piece
                 const bbKey = `bb_image_${idx}.png`;
                 const modKey = `mod_image_${idx}.png`;
-                const recKey = `modification_${idx}.txt`;
-                const ratKey = `rationale_${idx}.txt`;
+                const textKey = `text_${idx}.json`;
 
                 // image parts as base64 URIs
                 const bbBase64 = await zip.file(bbKey)!.async('base64');
                 const modBase64 = await zip.file(modKey)!.async('base64');
 
                 // text parts
-                const recText = await zip.file(recKey)!.async('string');
-                const ratText = await zip.file(ratKey)!.async('string');
+                const jsonStr = await zip.file(textKey)!.async('string');
+                const parsed = JSON.parse(jsonStr);
 
                 setBbImage(`data:image/png;base64,${bbBase64}`);
                 setModImage(`data:image/png;base64,${modBase64}`);
-                setRecommendation(recText.trim());
-                setRationale(ratText.trim());
+                setRecommendation(parsed.modification.trim());
+                setRationale(parsed.rationale.trim());
+                setCost(parsed.cost);
+                setInstallation(parsed.installation);
             } catch (e) {
                 console.error(e);
-                Alert.alert('Error', 'Failed to load improvement data.');
+                Alert.alert('Error', 'Failed to load modification data.');
             } finally {
                 setLoading(false);
             }
@@ -81,7 +87,7 @@ export default function ImprovementDetail() {
                 params: {
                     idx: idx + 1, // move to next image
                     total: total.toString(),
-                    zipUri, // pass along your zip location
+                    zipUri, // pass along zip file location
                 },
             });
         } else {
@@ -116,6 +122,14 @@ export default function ImprovementDetail() {
                         <View style={styles.section}>
                             <Text style={styles.sectionHeader}>Why:</Text>
                             <Text style={styles.sectionText}>{rationale}</Text>
+                        </View>
+                        <View style={styles.section}>
+                            <Text style={styles.sectionHeader}>Cost:</Text>
+                            <Text style={styles.sectionText}>{cost}</Text>
+                        </View>
+                        <View style={styles.section}>
+                            <Text style={styles.sectionHeader}>Installation:</Text>
+                            <Text style={styles.sectionText}>{installation}</Text>
                         </View>
                     </View>
 
