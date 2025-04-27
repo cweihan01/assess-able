@@ -18,10 +18,18 @@ import { Buffer } from 'buffer';
 
 export default function ImprovementDetail() {
     // Grab the params from the route: zip URI, total count, and current idx
-    const { zipUri, total: totalStr, idx: idxStr } = useLocalSearchParams();
+    const { zipUri, total: totalStr, idx: idxStr, saved: savedParam } = useLocalSearchParams();
     const router = useRouter();
     const idx = parseInt(idxStr as string, 10);
     const total = parseInt(totalStr as string, 10);
+    const initialSaved =
+        typeof savedParam === 'string'
+            ? savedParam
+            : Array.isArray(savedParam)
+            ? savedParam.join(',')
+            : '';
+
+    const [saved, setSaved] = useState<string>(initialSaved);
 
     // Local state for each page's content
     const [bbImage, setBbImage] = useState<string | null>(null);
@@ -80,19 +88,47 @@ export default function ImprovementDetail() {
         loadZipContents();
     }, [idx, zipUri]);
 
-    const goNext = () => {
-        if (idx < total) {
+    const handleSkip = () => {
+        console.log('Skipping improvement ', idx);
+        // keep `saved` the same
+        const next = idx + 1;
+        if (next <= total) {
+            router.push({
+                pathname: '/improvements/[idx]',
+                params: { idx: next.toString(), total: total.toString(), zipUri, saved },
+            });
+        } else {
+            // if skipping the last, still go to summary
+            router.replace({
+                pathname: '/summary',
+                params: { saved: saved },
+            });
+        }
+    };
+
+    const handleSave = () => {
+        // append this idx
+        console.log('Saving improvement ', idx);
+        const newSaved = saved ? `${saved},${idx}` : `${idx}`;
+        const next = idx + 1;
+
+        if (next <= total) {
+            // go to next improvement, passing newSaved
             router.push({
                 pathname: '/improvements/[idx]',
                 params: {
-                    idx: idx + 1, // move to next image
+                    idx: next.toString(),
                     total: total.toString(),
-                    zipUri, // pass along zip file location
+                    zipUri,
+                    saved: newSaved,
                 },
             });
         } else {
-            Alert.alert('All done!', 'You’ve reviewed all improvements.');
-            router.replace('/'); // back to home
+            // on the last one, go to summary
+            router.replace({
+                pathname: '/summary',
+                params: { saved: newSaved },
+            });
         }
     };
 
@@ -134,7 +170,7 @@ export default function ImprovementDetail() {
                     </View>
 
                     <View style={styles.buttonsRow}>
-                        <Button title="Not now" onPress={goNext} />
+                        <Button title="Not now" onPress={handleSkip} color="gray" />
                         <Button title="Show me" onPress={() => setPreviewMode(true)} />
                     </View>
                 </>
@@ -142,10 +178,13 @@ export default function ImprovementDetail() {
                 // — Preview screen —
                 <>
                     {modImage && <Image source={{ uri: modImage }} style={styles.imageFull} />}
-                    <View style={styles.buttonsRow}>
+                    <View style={styles.previewButtonsRow}>
                         <Button title="Back" onPress={() => setPreviewMode(false)} />
-                        <Button title="Discard" onPress={goNext} />
-                        <Button title="Save" onPress={goNext} />
+                        <View style={styles.rightButtons}>
+                            <Button title="Skip" onPress={handleSkip} color="gray" />
+                            <View style={styles.spacer} />
+                            <Button title="Save" onPress={handleSave} color="#28A745" />
+                        </View>
                     </View>
                 </>
             )}
@@ -194,5 +233,19 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         marginBottom: 30,
+    },
+    // new styles for preview mode buttons
+    previewButtonsRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 30,
+    },
+    rightButtons: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    spacer: {
+        width: 12,
     },
 });

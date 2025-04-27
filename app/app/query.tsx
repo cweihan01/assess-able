@@ -218,7 +218,7 @@ export default function Query() {
             .map((opt) => opt.label);
 
         if (chosen.length === 0 && !noteText && !audioUri) {
-            Alert.alert('Please select at least one option.');
+            Alert.alert('Please enter at least one field so that we can better help you!');
             return;
         }
 

@@ -103,7 +103,8 @@ export default function Upload() {
                 params: {
                     idx: '1', // start at 1
                     total: total.toString(),
-                    zipUri, // pass along your zip location
+                    zipUri: zipUri, // pass along your zip location
+                    saved: '', // empty string as nothing saved yet
                 },
             });
         } catch (error) {
