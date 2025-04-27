@@ -59,7 +59,7 @@ async def analyze_audio(file: UploadFile = File(...)):
     response = client.models.generate_content(
         model = MODEL_ID,
         contents=[
-            "Create a list of physical health problems fleshed out in this audio file, separate them with commas",
+            "Create a list of physical health problems fleshed out in this audio file, separate them with commas. Do not use commas anywhere else in the text, I should be able to split the text by commas and get short point form statements.",
             types.Part.from_bytes(
                 data=audio_bytes,
                 mime_type='audio/mp3',  # Automatically pick mime type e.g., 'audio/mp3'
