@@ -12,7 +12,7 @@ import os
 import zipfile
 from typing import List
 import logging
-from fpdf import FPDF
+from pdf_report import PDFReport
 
 logger = logging.getLogger('uvicorn.error')
 logger.setLevel(logging.DEBUG)
@@ -314,62 +314,64 @@ async def analyze_image(
     )
 
 @app.post("/generate_report/")
-async def generate_report(indexes: List[int] = Form(...)):
+async def generate_report(indexes: str = Form(...)):
     print("generate report called")
-    print("Received indexes:", indexes)
+    try:
+        # Split the string by commas, strip spaces, and convert to integers
+        index_list = [int(i.strip()) for i in indexes.split(',')]
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Indexes must be a comma-separated list of integers.")
+    
+    print("Received indexes:", index_list)
 
     # Path to your zip file
     zip_path = os.path.join(os.getcwd(), "sample.zip")
     if not os.path.exists(zip_path):
         raise HTTPException(status_code=404, detail="Test ZIP not found")
 
-    # Temporary folder to extract images
-    temp_extract_folder = os.path.join(os.getcwd(), "temp_extract")
-    os.makedirs(temp_extract_folder, exist_ok=True)
+    # Create PDF Object
+    pdf = PDFReport()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_cover_page()
 
-    # Open zip file
     with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-        # Extract only selected images
-        selected_filenames = [f"mod_image_{i}.png" for i in indexes]
-        print("Selected filenames:", selected_filenames)
+        for idx in index_list:
+            image_filename = f"mod_image_{idx}.png"
+            text_filename = f"text_{idx}.json"
 
-        for filename in selected_filenames:
             try:
-                zip_ref.extract(filename, path=temp_extract_folder)
+                with zip_ref.open(image_filename) as file:
+                    img = Image.open(file)
+                    img_width, img_height = img.size
+
+                    width_mm = img_width * 0.264583
+                    height_mm = img_height * 0.264583
+
+                    temp_img_path = f"temp_image_{idx}.png"
+                    img.save(temp_img_path)
             except KeyError:
-                print(f"File {filename} not found in the ZIP!")
+                print(f"Image file {image_filename} not found in ZIP!")
+                continue
 
-    # Create a PDF
-    pdf = FPDF()
-    for idx in indexes:
-        image_path = os.path.join(temp_extract_folder, f"image_{idx}.jpg")
-        if os.path.exists(image_path):
-            img = Image.open(image_path)
-            img_width, img_height = img.size
+            try:
+                with zip_ref.open(text_filename) as text_file:
+                    text_data = json.load(text_file)
+            except KeyError:
+                print(f"Text file {text_filename} not found in ZIP!")
+                text_data = {}
 
-            # Convert pixels to mm for FPDF (1 px ≈ 0.264583 mm)
-            width_mm = img_width * 0.264583
-            height_mm = img_height * 0.264583
+            pdf.add_image_and_description(temp_img_path, text_data)
 
-            pdf.add_page()
-            pdf.image(image_path, x=10, y=10, w=width_mm/2, h=height_mm/2)
-        else:
-            print(f"Image {image_path} does not exist!")
+            # Clean up temp image
+            os.remove(temp_img_path)
 
-    # Save the generated PDF
     output_pdf_path = os.path.join(os.getcwd(), "output.pdf")
     pdf.output(output_pdf_path)
 
-    # Clean up extracted files if you want
-    for file in os.listdir(temp_extract_folder):
-        os.remove(os.path.join(temp_extract_folder, file))
-    os.rmdir(temp_extract_folder)
-
-    # Return the PDF file
     return FileResponse(
         path=output_pdf_path,
         media_type="application/pdf",
-        filename="report.pdf"
+        filename="home_safety_report.pdf"
     )
 
 @app.post("/analyze/")
@@ -385,7 +387,6 @@ async def analyze_image_test(file: UploadFile = File(...),):
         media_type="application/zip",
         filename="sample.zip",
     )
-
 
 if __name__ == "__main__":
     import uvicorn
