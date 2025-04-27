@@ -12,6 +12,8 @@ import os
 import zipfile
 from typing import List
 import logging
+from fpdf import FPDF
+
 logger = logging.getLogger('uvicorn.error')
 logger.setLevel(logging.DEBUG)
 
@@ -68,6 +70,12 @@ async def analyze_audio(file: UploadFile = File(...)):
     with open("problems.txt", "w", encoding="utf-8") as f:
         f.write(response.text)
 
+    return FileResponse(
+        path="problems.txt",
+        media_type="text/plain",
+        filename="problems.txt"
+    )
+
 @app.post("/analyze_text/")
 async def analyze_audio(file: UploadFile = File(...)):
     audio_bytes = await file.read()
@@ -85,6 +93,12 @@ async def analyze_audio(file: UploadFile = File(...)):
     )
     
     print(response.text)
+
+    return FileResponse(
+        path="problems.txt",
+        media_type="text/plain",
+        filename="problems.txt"
+    )
 
 
 @app.post("/analyze_real/")
@@ -299,6 +313,64 @@ async def analyze_image(
         }
     )
 
+@app.post("/generate_report/")
+async def generate_report(indexes: List[int] = Form(...)):
+    print("generate report called")
+    print("Received indexes:", indexes)
+
+    # Path to your zip file
+    zip_path = os.path.join(os.getcwd(), "sample.zip")
+    if not os.path.exists(zip_path):
+        raise HTTPException(status_code=404, detail="Test ZIP not found")
+
+    # Temporary folder to extract images
+    temp_extract_folder = os.path.join(os.getcwd(), "temp_extract")
+    os.makedirs(temp_extract_folder, exist_ok=True)
+
+    # Open zip file
+    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        # Extract only selected images
+        selected_filenames = [f"mod_image_{i}.png" for i in indexes]
+        print("Selected filenames:", selected_filenames)
+
+        for filename in selected_filenames:
+            try:
+                zip_ref.extract(filename, path=temp_extract_folder)
+            except KeyError:
+                print(f"File {filename} not found in the ZIP!")
+
+    # Create a PDF
+    pdf = FPDF()
+    for idx in indexes:
+        image_path = os.path.join(temp_extract_folder, f"image_{idx}.jpg")
+        if os.path.exists(image_path):
+            img = Image.open(image_path)
+            img_width, img_height = img.size
+
+            # Convert pixels to mm for FPDF (1 px ≈ 0.264583 mm)
+            width_mm = img_width * 0.264583
+            height_mm = img_height * 0.264583
+
+            pdf.add_page()
+            pdf.image(image_path, x=10, y=10, w=width_mm/2, h=height_mm/2)
+        else:
+            print(f"Image {image_path} does not exist!")
+
+    # Save the generated PDF
+    output_pdf_path = os.path.join(os.getcwd(), "output.pdf")
+    pdf.output(output_pdf_path)
+
+    # Clean up extracted files if you want
+    for file in os.listdir(temp_extract_folder):
+        os.remove(os.path.join(temp_extract_folder, file))
+    os.rmdir(temp_extract_folder)
+
+    # Return the PDF file
+    return FileResponse(
+        path=output_pdf_path,
+        media_type="application/pdf",
+        filename="report.pdf"
+    )
 
 @app.post("/analyze/")
 async def analyze_image_test(file: UploadFile = File(...),):
