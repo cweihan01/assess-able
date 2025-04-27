@@ -49,6 +49,43 @@ def parse_json(json_output: str):
 async def do_nothing():
     return {"error": "GET not defined for analyze/, use POST method"}
 
+@app.post("/analyze_audio/")
+async def analyze_audio(file: UploadFile = File(...)):
+    audio_bytes = await file.read()
+
+    # Send audio bytes to Gemini
+    response = client.models.generate_content(
+        model = MODEL_ID,
+        contents=[
+            "Create a list of physical health problems fleshed out in this audio file, separate them with commas",
+            types.Part.from_bytes(
+                data=audio_bytes,
+                mime_type='audio/mp3',  # Automatically pick mime type e.g., 'audio/mp3'
+            ),
+        ]
+    )
+    
+    with open("problems.txt", "w", encoding="utf-8") as f:
+        f.write(response.text)
+
+@app.post("/analyze_text/")
+async def analyze_audio(file: UploadFile = File(...)):
+    audio_bytes = await file.read()
+
+    # Send audio bytes to Gemini
+    response = client.models.generate_content(
+        model = MODEL_ID,
+        contents=[
+            "Create a list of physical health problems fleshed out in this audio file, separate them with commas",
+            types.Part.from_bytes(
+                data=audio_bytes,
+                mime_type='audio/mp3',  # Automatically pick mime type e.g., 'audio/mp3'
+            ),
+        ]
+    )
+    
+    print(response.text)
+
 
 @app.post("/analyze_real/")
 # @app.post("/analyze/")
@@ -68,27 +105,34 @@ async def analyze_image(
     original_image.save(buffered, format="JPEG")
     img_base64 = base64.b64encode(buffered.getvalue()).decode()
 
+    # Open and read problems.txt
+    with open("problems.txt", "r", encoding="utf-8") as f:
+        problems_text = f.read()
+
     prompt_recs = (f"""
-    Role: You are an occupational therapist / interior designer specialized in accessible home design, guided by ADA principles adapted for residential settings.
-    Context: The resident of this home is an elderly individual experiencing significant challenges with physical mobility (e.g., difficulty walking steadily, potentially uses a cane, walker, or wheelchair) and has significant balance issues, increasing their risk of falls.
-    Task: Analyze the provided images of the house interior. Based on Americans with Disabilities Act (ADA) guidelines and best practices for aging-in-place, fall prevention, and universal design, identify potential hazards and suggest specific, actionable modifications to improve safety, accessibility, and ease of use for this resident.
-    Analyze these aspects within the image and provide suggestions:
-    Toilet Area:
-        Analyze: Current toilet height (estimate standard vs. comfort height), clear floor space surrounding it (for transfers from walker/wheelchair), presence and placement of any existing grab bars, accessibility of toilet paper holder.
-        Suggest: Installing a taller "comfort height" toilet or raised seat, ensuring adequate clear transfer space, installing appropriately placed grab bars (specify locations like rear wall, side wall – consider types like straight, L-shaped), relocating toilet paper holder for easier reach.
-    Sink & Vanity Area:
-        Analyze: Sink/counter height, clear knee space underneath (for potential seated use), faucet control type (knobs, single lever, etc.), mirror height and visibility (standing/seated), reachability of soap/towels, general counter clutter.
-        Suggest: Modifying vanity for knee space, installing lever-handle or touchless faucets (easier operation), lowering/tilting mirror, ensuring essential items are within easy reach without leaning/stretching, organizing storage.
-    Bathing Area (Shower and/or Tub):
-        Analyze: Method of entry (step-over tub wall, shower curb height), presence and location of grab bars, availability and type of seating (built-in/portable), shower controls (reachability from seated/standing, ease of use, anti-scald features?), shower head type (fixed/handheld, adjustable height?), slip resistance of the floor surface inside.
-        Suggest: Creating a curbless/zero-entry shower, installing a tub cut-out or transfer bench for tub access, adding strategically placed grab bars (vertical at entry, horizontal/angled inside), installing a secure fold-down or fixed shower seat, ensuring easy-to-operate controls with clear temperature markings, installing a handheld shower head on an adjustable slide bar, applying non-slip treatments or ensuring high-traction surfaces.
-    Flooring:
-        Analyze: Main bathroom floor material type, perceived slip resistance (especially when potentially wet), presence and type of any mats or rugs (potential trip hazards).
-        Suggest: Installing high-traction, non-slip flooring (e.g., matte finish tiles with appropriate COF rating, textured vinyl), removing loose rugs entirely, or using only securely adhered, low-profile, non-slip mats if absolutely necessary. Emphasize non-slip surfaces throughout.
-    Output Format: Please provide multiple suggestions as a clear, prioritized list. Store each suggestion as a separate JSON object (maximum 5). For each suggestion:
-    Clearly state the recommended modification, specific enough for an architect to know where on the image they should draw the changes. (Modification)
-    Explain why it's important for someone with mobility/balance issues, referencing ADA principles or fall prevention where applicable. (Rationale)               
-    """)
+            Role: You are an occupational therapist / interior designer specialized in accessible home design, guided by ADA principles adapted for residential settings.
+            Context: The resident of this home is an elderly individual experiencing significant challenges with physical mobility: {problems_text}. This increases their risk of falls.
+            Task: Analyze the provided images of the house interior. Based on Americans with Disabilities Act (ADA) guidelines and best practices for aging-in-place, fall prevention, and universal design, identify potential hazards and suggest specific, actionable modifications to improve safety, accessibility, and ease of use for this resident.
+            Analyze these aspects within the image and provide suggestions:
+            Toilet Area:
+                Analyze: Current toilet height (estimate standard vs. comfort height), clear floor space surrounding it (for transfers from walker/wheelchair), presence and placement of any existing grab bars, accessibility of toilet paper holder.
+                Suggest: Installing a taller "comfort height" toilet or raised seat, ensuring adequate clear transfer space, installing appropriately placed grab bars (specify locations like rear wall, side wall – consider types like straight, L-shaped), relocating toilet paper holder for easier reach.
+            Sink & Vanity Area:
+                Analyze: Sink/counter height, clear knee space underneath (for potential seated use), faucet control type (knobs, single lever, etc.), mirror height and visibility (standing/seated), reachability of soap/towels, general counter clutter.
+                Suggest: Modifying vanity for knee space, installing lever-handle or touchless faucets (easier operation), lowering/tilting mirror, ensuring essential items are within easy reach without leaning/stretching, organizing storage.
+            Bathing Area (Shower and/or Tub):
+                Analyze: Method of entry (step-over tub wall, shower curb height), presence and location of grab bars, availability and type of seating (built-in/portable), shower controls (reachability from seated/standing, ease of use, anti-scald features?), shower head type (fixed/handheld, adjustable height?), slip resistance of the floor surface inside.
+                Suggest: Creating a curbless/zero-entry shower, installing a tub cut-out or transfer bench for tub access, adding strategically placed grab bars (vertical at entry, horizontal/angled inside), installing a secure fold-down or fixed shower seat, ensuring easy-to-operate controls with clear temperature markings, installing a handheld shower head on an adjustable slide bar, applying non-slip treatments or ensuring high-traction surfaces.
+            Flooring:
+                Analyze: Main bathroom floor material type, perceived slip resistance (especially when potentially wet), presence and type of any mats or rugs (potential trip hazards).
+                Suggest: Installing high-traction, non-slip flooring (e.g., matte finish tiles with appropriate COF rating, textured vinyl), removing loose rugs entirely, or using only securely adhered, low-profile, non-slip mats if absolutely necessary. Emphasize non-slip surfaces throughout.
+            Output Format: Please provide multiple suggestions as a clear, prioritized list. Store each suggestion as a separate JSON object (maximum 3). For each suggestion:
+            Clearly state the recommended modification, specific enough for an architect to know where on the image they should draw the changes. (Modification)
+            Explain why it's important for someone with mobility/balance issues, referencing ADA principles or fall prevention where applicable. (Rationale)
+            Estimate the cost of such an implementation in terms of the number of dollar signs. (Cost)
+            Briefly speaking, how will the installation process look like. (Installation)
+    """
+    )
 
     print("Parsed image, calling Gemini")
     # Call Gemini
@@ -123,6 +167,8 @@ async def analyze_image(
         for rec_idx, rec in enumerate(parsed_json_recs):
             mod = parsed_json_recs[rec_idx]['Modification']
             rationale = parsed_json_recs[rec_idx]['Rationale']
+            cost = parsed_json_recs[rec_idx]['Cost']
+            installation = parsed_json_recs[rec_idx]['Installation']
 
             prompt_bb = (f"""
             Role: Act as an OT/Interior Designer specializing in accessible home modifications for seniors with significant mobility/balance issues and fall risk, using adapted ADA principles.
@@ -177,12 +223,16 @@ async def analyze_image(
                 # Write image into the zip file
                 zip_file.writestr(f"bb_image_{rec_idx + 1}.png", img_bytes.read())
 
-                # Write rationale into the zip file
-                zip_file.writestr(f"rationale_{rec_idx+1}.txt", rationale)
-                zip_file.writestr(f"modification_{rec_idx+1}.txt", mod)
+                # Create a dictionary that combines all 4 text parts
+                combined_data = {
+                    "rationale": rationale,
+                    "modification": mod,
+                    "cost": cost,
+                    "installation": installation
+                }
 
-                # ----- Second Gemini Call for handlebar -----
-                print("Calling Gemini again")
+                # Write it into the zip file as a JSON file
+                zip_file.writestr(f"text_{rec_idx+1}.json", json.dumps(combined_data, indent=2))
 
                 # Prepare second prompt
                 prompt_mod = f"""
